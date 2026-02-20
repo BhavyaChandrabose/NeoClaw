@@ -1,8 +1,8 @@
 // Content script to block print screen on payment pages
 console.log('[AI Chat Security] Payment page protection script loaded');
 
-// Payment gateway patterns to detect
-const PAYMENT_PATTERNS = [
+// Default payment gateway patterns (fallback)
+const DEFAULT_PAYMENT_PATTERNS = [
   'payment', 'checkout', 'billing', 'pay', 'cart',
   'stripe', 'paypal', 'razorpay', 'paytm', 'phonepe',
   'googlepay', 'amazonpay', 'worldpay', 'square',
@@ -10,10 +10,47 @@ const PAYMENT_PATTERNS = [
   'secure', 'transaction', 'order-confirmation'
 ];
 
+// Will be populated with region-specific patterns
+let PAYMENT_PATTERNS = DEFAULT_PAYMENT_PATTERNS;
+
 let isProtectionEnabled = false;
 let permanentWatermark = null;
 let lastScreenshotAttempt = 0;
 let screenshotAttempts = 0;
+
+// Load payment patterns from storage or fetch new ones
+async function loadPaymentPatterns() {
+  try {
+    // Try to get cached patterns from storage
+    const result = await chrome.storage.local.get(['payment_patterns', 'payment_patterns_timestamp']);
+    
+    const oneDay = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const now = Date.now();
+    const timestamp = result.payment_patterns_timestamp || 0;
+    
+    // Use cached patterns if fresh (less than 24 hours old)
+    if (result.payment_patterns && (now - timestamp) < oneDay) {
+      PAYMENT_PATTERNS = result.payment_patterns;
+      console.log('[AI Chat Security] Loaded cached payment patterns:', PAYMENT_PATTERNS.length, 'patterns');
+      return;
+    }
+    
+    // Request fresh patterns from background script
+    console.log('[AI Chat Security] Requesting fresh payment patterns...');
+    const response = await chrome.runtime.sendMessage({ type: 'GET_PAYMENT_PATTERNS' });
+    
+    if (response && response.success && response.patterns) {
+      PAYMENT_PATTERNS = response.patterns;
+      console.log('[AI Chat Security] Loaded fresh payment patterns:', PAYMENT_PATTERNS.length, 'patterns');
+    } else {
+      console.log('[AI Chat Security] Using default payment patterns');
+      PAYMENT_PATTERNS = DEFAULT_PAYMENT_PATTERNS;
+    }
+  } catch (error) {
+    console.error('[AI Chat Security] Error loading payment patterns:', error);
+    PAYMENT_PATTERNS = DEFAULT_PAYMENT_PATTERNS;
+  }
+}
 
 // Check if current page is a payment page
 function isPaymentPage() {
@@ -309,6 +346,9 @@ function addSecurityBanner() {
 // Check settings and enable protection if needed
 async function checkAndEnableProtection() {
   try {
+    // First, load payment patterns
+    await loadPaymentPatterns();
+    
     // Get settings from background
     const response = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
     

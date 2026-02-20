@@ -91,7 +91,7 @@ async function resetSettings() {
     excludeWorkTabs: false,
     maxMemories: 1000,
     neoClawUrl: 'https://ai-hacker-neoclaw.securebrowser.com',
-    neoClawToken: 'kOwC16C2Y6vhu1RrLz2s7wwpJAFfBwPhCcIZ8ym8nSWsgooF',
+    neoClawToken: '',
     enablePaymentProtection: true
   };
   

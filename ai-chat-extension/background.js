@@ -185,6 +185,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ success: true, deleted: cleanupCount });
           break;
           
+        case 'GET_PAYMENT_PATTERNS':
+          const patterns = await getPaymentPatterns();
+          sendResponse({ success: true, patterns: patterns });
+          break;
+          
         default:
           sendResponse({ success: false, error: 'Unknown message type' });
       }
@@ -734,6 +739,164 @@ async function isBlockedSite(url) {
   const { ai_blocked_sites } = await chrome.storage.local.get('ai_blocked_sites');
   const blockedSites = ai_blocked_sites || [];
   return blockedSites.some(pattern => url.toLowerCase().includes(pattern.toLowerCase()));
+}
+
+// Get payment patterns from NeoClaw based on user's region
+async function getPaymentPatterns() {
+  console.log('[AI Chat Payment] === Starting payment patterns fetch ===');
+  
+  const defaultPatterns = [
+    'payment', 'checkout', 'billing', 'pay', 'cart',
+    'stripe', 'paypal', 'razorpay', 'paytm', 'phonepe',
+    'googlepay', 'amazonpay', 'worldpay', 'square',
+    '/checkout', '/payment', '/billing', '/cart',
+    'secure', 'transaction', 'order-confirmation'
+  ];
+  
+  try {
+    const cached = await chrome.storage.local.get(['payment_patterns', 'payment_patterns_timestamp']);
+    const oneDay = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    
+    if (cached.payment_patterns && cached.payment_patterns_timestamp && 
+        (now - cached.payment_patterns_timestamp) < oneDay) {
+      console.log('[AI Chat Payment] ✓ Using cached payment patterns:', cached.payment_patterns.length, 'patterns');
+      return cached.payment_patterns;
+    }
+    
+    console.log('[AI Chat Payment] Fetching fresh patterns...');
+    
+    const region = await detectUserRegion();
+    console.log('[AI Chat Payment] 🌍 Detected region:', region);
+    
+    const { ai_settings } = await chrome.storage.local.get('ai_settings');
+    const neoClawUrl = ai_settings?.neoClawUrl;
+    const neoClawToken = ai_settings?.neoClawToken;
+    
+    console.log('[AI Chat Payment] NeoClaw URL:', neoClawUrl || 'NOT SET');
+    console.log('[AI Chat Payment] Token:', neoClawToken ? 'SET (length: ' + neoClawToken.length + ')' : 'NOT SET');
+    
+    if (!neoClawUrl || !neoClawToken) {
+      console.log('[AI Chat Payment] ⚠️ Using default patterns');
+      return defaultPatterns;
+    }
+    
+    const prompt = `List payment gateway and financial website keywords/patterns commonly used in ${region}. Include:
+1. International payment gateways (PayPal, Stripe, etc.)
+2. Regional/local payment gateways specific to ${region}
+3. Common URL patterns for checkout/payment pages
+4. Banking and financial service keywords
+
+Return ONLY a comma-separated list of lowercase keywords and URL patterns (no explanations).
+Example: payment,checkout,billing,stripe,paypal,razorpay,paytm
+
+Region: ${region}
+List:`;
+
+    console.log('[AI Chat Payment] 📤 Sending request...');
+    
+    const requestBody = {
+      model: 'openclaw',
+      stream: false,
+      input: [{ type: 'message', role: 'user', content: prompt }]
+    };
+    
+    console.log('[AI Chat Payment] Request:', JSON.stringify(requestBody, null, 2));
+    
+    const response = await fetch(`${neoClawUrl}/v1/responses`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${neoClawToken}`,
+        'Content-Type': 'application/json',
+        'x-openclaw-agent-id': 'main'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    console.log('[AI Chat Payment] 📥 Response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[AI Chat Payment] ❌ API Error:', errorText);
+      return defaultPatterns;
+    }
+    
+    const data = await response.json();
+    console.log('[AI Chat Payment] 📋 Full Response:', JSON.stringify(data, null, 2));
+    
+    const responseText = data?.output?.[0]?.content?.[0]?.text?.trim() || '';
+    console.log('[AI Chat Payment] Extracted text:', responseText);
+    
+    if (!responseText) {
+      console.log('[AI Chat Payment] ⚠️ Empty response');
+      return defaultPatterns;
+    }
+    
+    const patterns = responseText
+      .toLowerCase()
+      .split(/[,\n]/)
+      .map(p => p.trim())
+      .filter(p => p && p.length > 2)
+      .filter(p => !/^(and|or|the|a|an|in|on|at|to|for)$/.test(p));
+    
+    console.log('[AI Chat Payment] Parsed patterns:', patterns.length);
+    console.log('[AI Chat Payment] First 10:', patterns.slice(0, 10).join(', '));
+    
+    const combinedPatterns = [...new Set([...patterns, ...defaultPatterns])];
+    console.log('[AI Chat Payment] ✓ Final count:', combinedPatterns.length);
+    
+    await chrome.storage.local.set({
+      payment_patterns: combinedPatterns,
+      payment_patterns_timestamp: now
+    });
+    
+    console.log('[AI Chat Payment] 💾 Cached for 24 hours');
+    return combinedPatterns;
+    
+  } catch (error) {
+    console.error('[AI Chat Payment] ❌ Error:', error.name, error.message);
+    console.error('[AI Chat Payment] Stack:', error.stack);
+    return defaultPatterns;
+  }
+}
+
+// Detect user's region
+async function detectUserRegion() {
+  try {
+    const language = navigator.language || 'en-US';
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    console.log('[AI Chat Payment] Language:', language, 'Timezone:', timezone);
+    
+    let region = 'Global';
+    
+    if (language.startsWith('en-US') || timezone.includes('America/New_York') || timezone.includes('America/Los_Angeles')) {
+      region = 'United States';
+    } else if (language.startsWith('en-IN') || timezone.includes('Asia/Kolkata')) {
+      region = 'India';
+    } else if (language.startsWith('en-GB') || timezone.includes('Europe/London')) {
+      region = 'United Kingdom';
+    } else if (timezone.includes('Europe/')) {
+      region = 'Europe';
+    } else if (timezone.includes('Asia/Shanghai') || timezone.includes('Asia/Hong_Kong')) {
+      region = 'China/Hong Kong';
+    } else if (timezone.includes('Asia/Tokyo')) {
+      region = 'Japan';
+    } else if (timezone.includes('Asia/Singapore')) {
+      region = 'Singapore';
+    } else if (timezone.includes('Australia/')) {
+      region = 'Australia';
+    } else if (timezone.includes('America/Sao_Paulo')) {
+      region = 'Brazil';
+    } else if (timezone.includes('Asia/Dubai')) {
+      region = 'UAE/Middle East';
+    }
+    
+    return region;
+  } catch (error) {
+    console.error('[AI Chat Payment] Region detection error:', error);
+    return 'Global';
+  }
 }
 
 // Gather context for AI
