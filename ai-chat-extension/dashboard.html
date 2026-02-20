@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My AI Memory Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="dashboard">
+    <div class="dashboard-header">
+      <h1>💾 My AI Memory Dashboard</h1>
+      <button id="backBtn" class="btn-secondary">← Back to Chat</button>
+    </div>
+
+    <div class="dashboard-stats">
+      <div class="stat-card" title="Total memories including stored, history, tabs, and bookmarks">
+        <div class="stat-value" id="totalMemories">0</div>
+        <div class="stat-label">Total Memories</div>
+        <div class="stat-detail" id="totalBreakdown">Loading...</div>
+      </div>
+      <div class="stat-card" title="Stored memories from today">
+        <div class="stat-value" id="todayMemories">0</div>
+        <div class="stat-label">Today</div>
+      </div>
+      <div class="stat-card" title="Stored memories from this week">
+        <div class="stat-value" id="weekMemories">0</div>
+        <div class="stat-label">This Week</div>
+      </div>
+      <div class="stat-card" title="Number of unique topics">
+        <div class="stat-value" id="topicsCount">0</div>
+        <div class="stat-label">Topics</div>
+      </div>
+    </div>
+
+    <div class="dashboard-controls">
+      <div class="control-group">
+        <h3>🔍 Filter Memories</h3>
+        <div class="filter-row">
+          <select id="sourceFilter" class="filter-select">
+            <option value="">All Sources</option>
+            <option value="history">History</option>
+            <option value="bookmark">Bookmarks</option>
+            <option value="tab">Tabs</option>
+            <option value="chat">Chat</option>
+          </select>
+
+          <input type="text" id="topicFilter" placeholder="Filter by topic..." class="filter-input">
+
+          <select id="timeFilter" class="filter-select">
+            <option value="">All Time</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="custom">Custom Range</option>
+          </select>
+
+          <button id="applyFilters" class="btn-primary">Apply</button>
+          <button id="clearFilters" class="btn-secondary">Clear</button>
+        </div>
+
+        <div id="customTimeRange" class="custom-time-range" style="display: none;">
+          <input type="date" id="startDate" class="date-input">
+          <span>to</span>
+          <input type="date" id="endDate" class="date-input">
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>🗑️ Bulk Actions</h3>
+        <div class="action-row">
+          <input type="text" id="deleteTopic" placeholder="Subject/domain (e.g., programming, cooking)..." class="action-input">
+          <button id="deleteByTopicBtn" class="btn-danger">Delete by Subject</button>
+
+          <button id="deleteOldBtn" class="btn-danger">Delete Old (30+ days)</button>
+          <button id="deleteAllBtn" class="btn-danger">Delete All</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="memories-container">
+      <div class="memories-header">
+        <h3>📚 All Memories (Stored + Browser Context)</h3>
+        <span id="displayCount" class="count-badge">0 items</span>
+      </div>
+
+      <div class="scroll-hint">
+        <span>👇 Scroll down to load more items automatically</span>
+      </div>
+
+      <div id="memoriesList" class="memories-list memories-scroll">
+        <div class="loading">Loading memories...</div>
+      </div>
+
+      <div id="loadingMore" class="loading-more" style="display: none;">
+        <div class="spinner"></div>
+        <span>Loading more items...</span>
+      </div>
+
+      <button id="loadMoreBtn" class="load-more-btn" style="display: none;">
+        Load More
+      </button>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

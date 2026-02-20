@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Chat</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🤖 AI Chat</h1>
+      <button id="openDashboard" class="btn-secondary">📊 Memory Dashboard</button>
+    </div>
+
+    <div class="chat-container">
+      <div id="chatMessages" class="chat-messages">
+        <div class="welcome-message">
+          <h2>Welcome to AI Chat!</h2>
+          <p>I can remember your browsing context and help you find information.</p>
+          <div class="context-stats" id="contextStats">
+            <span class="stat">📜 <span id="historyCount">0</span> history</span>
+            <span class="stat">📑 <span id="tabsCount">0</span> tabs</span>
+            <span class="stat">💾 <span id="memoriesCount">0</span> memories</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input-container">
+        <textarea 
+          id="chatInput" 
+          placeholder="Ask me anything... I have access to your browsing context"
+          rows="3"
+        ></textarea>
+        <button id="sendBtn" class="btn-primary">Send</button>
+      </div>
+    </div>
+
+    <div class="footer">
+      <button id="settingsBtn" class="btn-link">⚙️ Settings</button>
+      <button id="clearChatBtn" class="btn-link">🗑️ Clear Chat</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
